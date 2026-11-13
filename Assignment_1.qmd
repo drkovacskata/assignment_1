@@ -1,0 +1,125 @@
+---
+title: "Assignment_1_coctails"
+author: "Kata Kovacs"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+We will analyze Coctails' data from GitHub.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+# Read the data
+```{r}
+cocktails <- read_tsv('https://raw.githubusercontent.com/nthun/cocktail-balance/refs/heads/master/cocktail_data.tsv')
+```
+
+# Explore the data
+```{r}
+glimpse(cocktails)
+skim(cocktails)
+```
+
+# Transform the data table and clean the ingredient variable
+```{r}
+cocktails_long <- cocktails %>%
+  separate_rows(ingredients, sep = "<br/>")
+```
+
+```{r}
+glimpse(cocktails)
+```
+
+```{r}
+cocktails_long <- cocktails %>%
+  separate_rows(ingredients, sep = "<br/>") %>%
+  mutate(ingredients = str_remove(ingredients, "\\(.*\\)"),
+         ingredients = str_remove(ingredients, "^[0-9/. ]+"),
+         ingredients = str_remove(ingredients, "^(oz|ozs|dash|dashes|drop|drops|tsp|tbsp|barspoon|barspoons) "),
+         ingredients = str_squish(ingredients))
+```
+
+```{r}
+cocktails_long %>% count(ingredients, sort = TRUE)
+```
+
+# All ingredients in alphabetical order
+```{r}
+cocktails_long %>%
+  distinct(ingredients) %>%
+  arrange(ingredients) %>%
+  pull(ingredients)
+```
+
+# Number of unique ingredients
+```{r}
+n_distinct(cocktails_long$ingredients)
+```
+
+# What are the top 10 ingredients?
+```{r}
+cocktails_long %>%
+  count(ingredients, sort = TRUE) %>%
+  slice_max(n, n = 10, with_ties = TRUE)
+```
+
+# Which cocktail(s) has/have the most ingredients?
+```{r}
+cocktails_long %>%
+  count(name, name = "n_ingredients") %>%
+  filter(n_ingredients == max(n_ingredients))
+```
+
+# How many ingredients appear in only one cocktail (rare ingredient)?
+```{r}
+cocktails_long %>%
+  count(ingredients) %>%
+  filter(n == 1) %>%
+  nrow()
+```
+
+# Which cocktail has an ingredient that is only used in one cocktail?
+
+```{r}
+cocktails_long %>%
+  add_count(ingredients, name = "n_cocktails") %>%
+  filter(n_cocktails == 1) %>%
+  distinct(name)
+```
+
+# What are the cocktails without rare ingredients?
+
+```{r}
+cocktails_long %>%
+  add_count(ingredients, name = "n_cocktails") %>%
+  group_by(name) %>%
+  filter(all(n_cocktails > 1)) %>%
+  distinct(name)
+```
+
+# Create a cheat sheet for the bartender!
+```{r}
+cocktail_matrix <- cocktails_long %>%
+  distinct(name, ingredients) %>%
+  mutate(value = "X") %>%
+  pivot_wider(names_from = ingredients,
+              values_from = value,
+              values_fill = "") %>%
+  relocate(name, sort(names(.)))
+
+cocktail_matrix
+```
+
+
+
+
+
+
+
+
